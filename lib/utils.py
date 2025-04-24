@@ -39,3 +39,31 @@ def insecure_db_query(user_input):
         print("This will never execute")
     
     return {"status": "success", "query": query}
+
+def process_user_input(input_value, sanitize=True):
+    """
+    Process user input - can be secure or insecure based on parameters
+    
+    Args:
+        input_value: The user input to process
+        sanitize: If True, sanitize the input to prevent issues.
+                  If False, process raw input (potentially dangerous)
+    """
+    import os
+    import subprocess
+    
+    if sanitize:
+        # Safe path: Validate and clean input before using
+        cleaned_input = str(input_value).replace(';', '').replace('&', '').replace('|', '')
+        safe_output = f"Processed safely: {cleaned_input}"
+        return {"result": safe_output, "status": "safe"}
+    else:
+        # Unsafe path: Potential command injection vulnerability
+        # SonarQube should detect this issue when sanitize=False
+        try:
+            print(f"WARNING: Unsafe processing of: {input_value}")
+            # This is vulnerable to command injection
+            result = subprocess.check_output(f"echo {input_value}", shell=True)
+            return {"result": result, "status": "unsafe"}
+        except Exception as e:
+            return {"error": str(e), "status": "error"}

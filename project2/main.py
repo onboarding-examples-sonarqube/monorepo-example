@@ -8,7 +8,7 @@ import json
 # Add the parent directory to sys.path to import the lib package
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from lib.utils import calculate_average, insecure_db_query
+from lib.utils import calculate_average, process_user_input
 from lib.data_processing import transform_dict, filter_data
 
 def analyze_product_data(products):
@@ -61,5 +61,12 @@ if __name__ == "__main__":
     print("\nPremium products:")
     for product in result["premium_products"]:
         print(f"  {product['name']} (${product['price']}) - {product['category']}")
-        # Use the insecure function with product data - SonarQube should flag this
-        insecure_db_query(product['name'])
+        # Using the process_user_input function UNSAFELY - sanitize=False
+        # This should trigger SonarQube security issues (command injection)
+        unsafe_result = process_user_input(product['name'], sanitize=False)
+        print(f"    Processing result: {unsafe_result['status']}")
+        
+        # Even more dangerous - constructing a potentially malicious input
+        # This will definitely be caught by SonarQube
+        dangerous_input = f"{product['name']}; cat /etc/passwd"
+        process_user_input(dangerous_input, sanitize=False)
