@@ -8,7 +8,7 @@ import json
 # Add the parent directory to sys.path to import the lib package
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from lib.utils import calculate_average
+from lib.utils import calculate_average, insecure_db_query
 from lib.data_processing import transform_dict, filter_data
 
 def analyze_product_data(products):
@@ -61,3 +61,5 @@ if __name__ == "__main__":
     print("\nPremium products:")
     for product in result["premium_products"]:
         print(f"  {product['name']} (${product['price']}) - {product['category']}")
+        # Use the insecure function with product data - SonarQube should flag this
+        insecure_db_query(product['name'])

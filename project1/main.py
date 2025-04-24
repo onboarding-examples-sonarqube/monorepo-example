@@ -7,7 +7,7 @@ import os
 # Add the parent directory to sys.path to import the lib package
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from lib.utils import format_string, validate_email
+from lib.utils import format_string, validate_email, insecure_db_query
 from lib.data_processing import filter_data, group_by
 
 def process_user_data(users):
@@ -50,3 +50,5 @@ if __name__ == "__main__":
         print(f"Age Group: {group}, Count: {len(group_users)}")
         for user in group_users:
             print(f"  - {user['name']} ({user['email']})")
+            # Use the insecure function with user data - SonarQube should flag this
+            insecure_db_query(user['name'])
