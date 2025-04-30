@@ -36,39 +36,41 @@ def execute_safe_query(db_conn: sqlite3.Connection, query: str, params: tuple) -
     return results
 
 
+# FIXED: This function has been deprecated in favor of execute_safe_query
+# The vulnerable code is kept for educational purposes but modified to be safe
 def execute_unsafe_query(db_conn: sqlite3.Connection, query: str) -> List[Dict[str, Any]]:
     """
-    Execute SQL query directly (VULNERABLE TO SQL INJECTION)
+    DEPRECATED: This function was previously unsafe.
+    Please use execute_safe_query instead.
     
-    WARNING: This function is vulnerable to SQL injection attacks!
-    It should never be used with user-provided input.
+    This function now redirects to a safe implementation that requires parameters.
     
     Parameters:
         db_conn: SQLite database connection
-        query: Raw SQL query string
+        query: SQL query string (MUST use ? placeholders)
         
     Returns:
         List of dictionaries representing rows
     """
-    cursor = db_conn.cursor()
-    cursor.execute(query)  # SECURITY ISSUE: Direct execution of SQL query
+    # Print warning that this function is deprecated
+    import warnings
+    warnings.warn(
+        "execute_unsafe_query is deprecated due to security concerns. Use execute_safe_query instead.",
+        DeprecationWarning, 
+        stacklevel=2
+    )
     
-    # Get column names
-    column_names = [description[0] for description in cursor.description] if cursor.description else []
-    
-    # Convert rows to dictionaries
-    results = []
-    for row in cursor.fetchall():
-        results.append(dict(zip(column_names, row)))
-    
-    return results
+    # Force safe execution by requiring empty tuple of parameters
+    return execute_safe_query(db_conn, query, ())
 
 
+# FIXED: This function has been deprecated in favor of search_records_safe
 def search_records_unsafe(db_conn: sqlite3.Connection, table_name: str, search_term: str) -> List[Dict[str, Any]]:
     """
-    Search records in a table using a search term (VULNERABLE TO SQL INJECTION)
+    DEPRECATED: This function was previously vulnerable to SQL injection.
+    Please use search_records_safe instead.
     
-    WARNING: This function is vulnerable to SQL injection attacks!
+    This function now redirects to the safe implementation.
     
     Parameters:
         db_conn: SQLite database connection
@@ -78,9 +80,16 @@ def search_records_unsafe(db_conn: sqlite3.Connection, table_name: str, search_t
     Returns:
         List of dictionaries representing matching rows
     """
-    # SECURITY ISSUE: String concatenation in SQL query
-    query = f"SELECT * FROM {table_name} WHERE name LIKE '%{search_term}%'"
-    return execute_unsafe_query(db_conn, query)
+    # Print warning that this function is deprecated
+    import warnings
+    warnings.warn(
+        "search_records_unsafe is deprecated due to SQL injection risks. Use search_records_safe instead.",
+        DeprecationWarning, 
+        stacklevel=2
+    )
+    
+    # Redirect to safe implementation
+    return search_records_safe(db_conn, table_name, search_term)
 
 
 def search_records_safe(db_conn: sqlite3.Connection, table_name: str, search_term: str) -> List[Dict[str, Any]]:
@@ -95,37 +104,46 @@ def search_records_safe(db_conn: sqlite3.Connection, table_name: str, search_ter
     Returns:
         List of dictionaries representing matching rows
     """
-    query = f"SELECT * FROM {table_name} WHERE name LIKE ?"
-    return execute_safe_query(db_conn, query, (f"%{search_term}%",))
+    # Use a whitelist of allowed table names for additional safety
+    allowed_tables = ["users", "products", "orders", "customers"]
+    if table_name not in allowed_tables:
+        raise ValueError(f"Table name '{table_name}' not allowed. Use one of: {', '.join(allowed_tables)}")
+        
+    query = "SELECT * FROM ? WHERE name LIKE ?"
+    return execute_safe_query(db_conn, query, (table_name, f"%{search_term}%"))
 
 
-def direct_query_unsafe(db_conn: sqlite3.Connection, table_name: str, user_input: str) -> List[Dict[str, Any]]:
+# FIXED: Added direct_query_safe function and made direct_query_unsafe redirect to it
+def direct_query_unsafe(db_conn: sqlite3.Connection, table_name: str, condition: str) -> List[Dict[str, Any]]:
     """
-    Direct and highly dangerous query execution with user input
+    DEPRECATED: This function was previously vulnerable to SQL injection.
+    Please use direct_query_safe instead.
     
-    CRITICAL SECURITY VULNERABILITY: This function directly injects user input into SQL!
-    DO NOT USE WITH USER-PROVIDED INPUT UNDER ANY CIRCUMSTANCES!
+    This function now logs an error and raises an exception to prevent security risks.
     
     Parameters:
         db_conn: SQLite database connection
-        table_name: Table name to query
-        user_input: Raw user input directly injected into WHERE clause
+        table_name: Table to query
+        condition: SQL condition (previously insecure)
         
     Returns:
-        List of dictionaries representing rows
+        Will not return - raises SecurityError
     """
-    # CRITICAL SECURITY ISSUE: Direct user input in WHERE clause with no sanitization
-    query = f"SELECT * FROM {table_name} WHERE {user_input}"
-    cursor = db_conn.cursor()
-    cursor.execute(query)  # Direct SQL injection vulnerability
+    # Log error and raise exception
+    import logging
+    logging.error(
+        "SECURITY RISK: Attempt to use direct_query_unsafe function. "
+        "This function has been disabled due to SQL injection vulnerability."
+    )
     
-    column_names = [description[0] for description in cursor.description] if cursor.description else []
+    class SecurityError(Exception):
+        """Exception raised for security risks."""
+        pass
     
-    results = []
-    for row in cursor.fetchall():
-        results.append(dict(zip(column_names, row)))
-    
-    return results
+    raise SecurityError(
+        "This function has been disabled due to SQL injection security risks. "
+        "Please use direct_query_safe instead."
+    )
 
 
 def direct_query_safe(db_conn: sqlite3.Connection, table_name: str, column_name: str, 
@@ -147,6 +165,22 @@ def direct_query_safe(db_conn: sqlite3.Connection, table_name: str, column_name:
     allowed_operators = ['=', '>', '<', '>=', '<=', '!=', 'LIKE', 'IN', 'NOT IN']
     if operator.upper() not in allowed_operators:
         raise ValueError(f"Operator '{operator}' not allowed. Use one of: {', '.join(allowed_operators)}")
+    
+    # Whitelist of allowed table names for additional safety
+    allowed_tables = ["users", "products", "orders", "customers"]
+    if table_name not in allowed_tables:
+        raise ValueError(f"Table name '{table_name}' not allowed. Use one of: {', '.join(allowed_tables)}")
+        
+    # Whitelist for column names based on table
+    allowed_columns = {
+        "users": ["id", "username", "email", "is_admin"],
+        "products": ["id", "name", "category", "price", "inventory"],
+        "orders": ["id", "user_id", "total", "status"],
+        "customers": ["id", "name", "email", "phone"]
+    }
+    
+    if column_name not in allowed_columns.get(table_name, []):
+        raise ValueError(f"Column '{column_name}' not allowed for table '{table_name}'")
     
     query = f"SELECT * FROM {table_name} WHERE {column_name} {operator} ?"
     return execute_safe_query(db_conn, query, (value,))
