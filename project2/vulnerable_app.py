@@ -46,26 +46,39 @@ def initialize_database():
     conn.commit()
     conn.close()
 
-@app.route('/api/search', methods=['GET'])
-def search_users():
+# Extract the vulnerable function without the decorator to make it visible to SonarQube
+def vulnerable_sql_function(search_term):
     """
-    VULNERABLE ENDPOINT: This endpoint is vulnerable to SQL injection
-    
-    Example of safe usage: /api/search?condition=username='john_doe'
-    Example of SQL injection: /api/search?condition=1=1 OR username LIKE '%' --
+    This function contains a direct SQL injection vulnerability.
+    SonarQube should be able to detect this more easily.
     """
-    search_condition = request.args.get('condition', '')
-    
-    # VULNERABLE: directly passing user input to SQL query
     conn = connect_to_db(DB_PATH)
     try:
-        # This is vulnerable to SQL injection!
-        results = direct_query_unsafe(conn, 'users', search_condition)
+        # CRITICAL VULNERABILITY: Direct user input in SQL query without sanitization
+        query = f"SELECT * FROM users WHERE {search_term}"
+        cursor = conn.cursor()
+        cursor.execute(query)  # Direct SQL injection vulnerability
+        
+        column_names = [description[0] for description in cursor.description] if cursor.description else []
+        
+        results = []
+        for row in cursor.fetchall():
+            results.append(dict(zip(column_names, row)))
+        
+        return results
+    finally:
+        conn.close()
+
+# New route that uses the vulnerable function
+@app.route('/api/users/search', methods=['GET'])
+def api_search_users():
+    """Route that calls the vulnerable function"""
+    search_condition = request.args.get('condition', '')
+    try:
+        results = vulnerable_sql_function(search_condition)
         return jsonify({"users": results})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
 
 @app.route('/health')
 def health_check():
